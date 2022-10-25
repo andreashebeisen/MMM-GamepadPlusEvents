@@ -12,9 +12,14 @@ Module.register("MMM-GamepadPlusEvents", {
     defaults: {
         showNotification: false,
         axisThreshold: 0.15,
-        axisActions: [],
-        buttonActions: [],
-        keyActions: []
+        controlSets: [
+            {
+                name: "default",
+                default: true,
+                axisActions: [],
+                buttonActions: []
+            }
+        ]
     },
 
     getScripts: function() {
@@ -26,11 +31,32 @@ Module.register("MMM-GamepadPlusEvents", {
     notificationReceived: function (notification, payload, sender) {
         switch (notification) {
             case "ALL_MODULES_STARTED":
+                this.initControlSet();
                 this.initListeners();
                 break;
-            case "NEW_PAGE":
+            case "NEW_PAGE": // from MMM-pages
                 this.currentPageIndex = payload;
                 break;
+            case "NEW_GAMEPAD_CONTROLSET":
+                this.setControlSet(payload);
+                break;
+        }
+    },
+
+    initControlSet: function() {
+        let defaultControlSets = this.config.controlSets.filter(cs => cs.default);
+        if (defaultControlSets.length) {
+            this.currentControlSet = defaultControlSets[0];
+        }
+    },
+
+    setControlSet: function(controlSetName) {        
+        let controlSets = this.config.controlSets.filter(cs => cs.name === controlSetName);
+        if (controlSets.length) {
+            this.currentControlSet = controlSets[0];
+        }
+        else {
+            Log.console.warn();(`Control set not found: ${controlSetName}`);
         }
     },
 
@@ -131,7 +157,7 @@ Module.register("MMM-GamepadPlusEvents", {
         }
 
         let direction = e.value >= 0 ? "positive" : "negative";
-        let actions = this.config.axisActions.filter(a => a.axis === e.axis
+        let actions = this.currentControlSet.axisActions.filter(a => a.axis === e.axis
                                                         && a.direction === direction
                                                         && Math.abs(e.value) >= a.threshold
                                                         && (!a.gamepadId || a.gamepadId === e.gamepad.id) // filter for specific gamepad (filtered by id). Default: any gamepad.
@@ -153,7 +179,7 @@ Module.register("MMM-GamepadPlusEvents", {
             this.showNotification(message);
         }
 
-        let actions = this.config.buttonActions.filter(a => a.button === e.button
+        let actions = this.currentControlSet.buttonActions.filter(a => a.button === e.button
                                                         && (!a.gamepadId || a.gamepadId === e.gamepad.id) // filter for specific gamepad (filtered by id). Default: any gamepad.
                                                         && ((!a.type && type === "gamepadbuttondown") || a.type === type) // filter for gamepadbuttondown (default) or gamepadbuttonup
                                                         && (!a.page || a.page === this.currentPageIndex) // filter with current page. Default: any page.
@@ -161,6 +187,13 @@ Module.register("MMM-GamepadPlusEvents", {
 
         Array.from(actions).forEach(action => {
             this.sendNotification(action.notification, action.payload);
+
+            // execute "own" events since the module itself does not receive the notification sent
+            switch (action.notification) {
+                case "NEW_GAMEPAD_CONTROLSET":
+                    this.setControlSet(action.payload);
+                    break;
+            }
         });
     },
 
