@@ -5,11 +5,13 @@
 
 Module.register("MMM-GamepadPlusEvents", {
     defaults: {
-        showNotification: true,
+        showNotification: false,
         axisThreshold: 0.15,
         axisActions: [],
         buttonActions: [],
-        keyActions: []
+        keyActions: [],
+        currentControlSet: null,
+        currentPageIndex: 0
     },
 
     getScripts: function() {
@@ -23,10 +25,15 @@ Module.register("MMM-GamepadPlusEvents", {
             case "ALL_MODULES_STARTED":
                 this.initListeners();
                 break;
+            case "NEW_PAGE":
+                this.currentPageIndex = payload;
+                break;
         }
     },
 
     initListeners: function () {
+        // TODO: dismiss initial events while detecting gamepads
+        
         let self = this;
         
         Log.info(`Gamepads detected: ${Gamepads.hasGamepads()}`);
@@ -68,8 +75,6 @@ Module.register("MMM-GamepadPlusEvents", {
             if (gamepads.nonstandardEventsEnabled) {
                 window.addEventListener("gamepadaxismove", function (e) {
                     self.handleAxisEvent(e);
-                    // let message = `Gamepad axis move at index ${e.gamepad.index}: ${e.gamepad.id}. Axis: ${e.axis}. Value: ${e.value}.`;
-                    // self.showNotification(message);
                 });
 
                 window.addEventListener("gamepadbuttondown", function (e) {
@@ -110,16 +115,20 @@ Module.register("MMM-GamepadPlusEvents", {
     },
 
     handleAxisEvent: function (e) {
-        let message = `Gamepad axis move at index ${e.gamepad.index}: ${e.gamepad.id}. Axis: ${e.axis}. Value: ${e.value}.`;
+        let message = `Gamepad axis move at index ${e.gamepad.index}: ${e.gamepad.id}. Axis: ${e.axis}. Value: ${e.value}. Page: ${this.currentPageIndex}.`;
         Log.info(message);
 
         if (this.config.showNotification) {
             this.showNotification(message);
         }
 
-        // TODO: filter gamepad
         let direction = e.value >= 0 ? "positive" : "negative";
-        let actions = this.config.axisActions.filter(a => a.axis === e.axis && a.direction === direction && Math.abs(e.value) >= a.threshold);
+        let actions = this.config.axisActions.filter(a => a.axis === e.axis
+                                                        && a.direction === direction
+                                                        && Math.abs(e.value) >= a.threshold
+                                                        && (!a.gamepadId || a.gamepadId === e.gamepad.id) // filter for specific gamepad (filtered by id). Default: any gamepad.
+                                                        && (!a.page || a.page === this.currentPageIndex) // filter with current page (or no page specified)
+                                                    );
         Array.from(actions).forEach(action => {
             this.sendNotification(action.notification, action.payload);
         });
@@ -127,16 +136,19 @@ Module.register("MMM-GamepadPlusEvents", {
 
     handleButtonEvent: function (type, e) {
         let direction = type === "gamepadbuttondown" ? "down" : "up";
-        let message = `Gamepad button ${direction} at index ${e.gamepad.index}: ${e.gamepad.id}. Button: ${e.button}.`;
+        let message = `Gamepad button ${direction} at index ${e.gamepad.index}: ${e.gamepad.id}. Button: ${e.button}. Page: ${this.currentPageIndex}.`;
         Log.info(message);
 
         if (this.config.showNotification) {
             this.showNotification(message);
         }
 
-        // TODO: filter gamepad
-        // TODO: default for type?
-        let actions = this.config.buttonActions.filter(a => a.button === e.button && a.type === type);
+        let actions = this.config.buttonActions.filter(a => a.button === e.button
+                                                        && (!a.gamepadId || a.gamepadId === e.gamepad.id) // filter for specific gamepad (filtered by id). Default: any gamepad.
+                                                        && ((!a.type && type === "gamepadbuttondown") || a.type === type) // filter for gamepadbuttondown (default) or gamepadbuttonup
+                                                        && (!a.page || a.page === this.currentPageIndex) // filter with current page. Default: any page.
+                                                    );
+
         Array.from(actions).forEach(action => {
             this.sendNotification(action.notification, action.payload);
         });
