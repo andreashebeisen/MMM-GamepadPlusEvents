@@ -1,5 +1,6 @@
 //
 // Module : MMM-GamepadPlusEvents
+// inspired by: https://github.com/victor-paumier/MMM-GamepadEvents
 // based on: https://github.com/MozillaReality/gamepad-plus/blob/master/demo.js
 //
 
@@ -143,7 +144,7 @@ Module.register("MMM-GamepadPlusEvents", {
 
     handleButtonEvent: function (type, e) {
         if (!this.initialized) return;
-        
+
         let direction = type === "gamepadbuttondown" ? "down" : "up";
         let message = `Gamepad button ${direction} at index ${e.gamepad.index}: ${e.gamepad.id}. Button: ${e.button}. Page: ${this.currentPageIndex}.`;
         Log.info(message);
