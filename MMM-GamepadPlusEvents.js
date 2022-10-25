@@ -4,14 +4,16 @@
 //
 
 Module.register("MMM-GamepadPlusEvents", {
+    initialized: false,
+    currentControlSet: null,
+    currentPageIndex: 0,
+
     defaults: {
         showNotification: false,
         axisThreshold: 0.15,
         axisActions: [],
         buttonActions: [],
-        keyActions: [],
-        currentControlSet: null,
-        currentPageIndex: 0
+        keyActions: []
     },
 
     getScripts: function() {
@@ -32,8 +34,6 @@ Module.register("MMM-GamepadPlusEvents", {
     },
 
     initListeners: function () {
-        // TODO: dismiss initial events while detecting gamepads
-        
         let self = this;
         
         Log.info(`Gamepads detected: ${Gamepads.hasGamepads()}`);
@@ -112,9 +112,16 @@ Module.register("MMM-GamepadPlusEvents", {
                 });
             }
         }
+
+        // dismiss initial events while detecting gamepads
+        setTimeout(() => {
+            this.initialized = true;
+        }, 2000);
     },
 
     handleAxisEvent: function (e) {
+        if (!this.initialized) return;
+
         let message = `Gamepad axis move at index ${e.gamepad.index}: ${e.gamepad.id}. Axis: ${e.axis}. Value: ${e.value}. Page: ${this.currentPageIndex}.`;
         Log.info(message);
 
@@ -135,6 +142,8 @@ Module.register("MMM-GamepadPlusEvents", {
     },
 
     handleButtonEvent: function (type, e) {
+        if (!this.initialized) return;
+        
         let direction = type === "gamepadbuttondown" ? "down" : "up";
         let message = `Gamepad button ${direction} at index ${e.gamepad.index}: ${e.gamepad.id}. Button: ${e.button}. Page: ${this.currentPageIndex}.`;
         Log.info(message);
