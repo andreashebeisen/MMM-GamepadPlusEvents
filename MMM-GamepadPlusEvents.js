@@ -54,9 +54,10 @@ Module.register("MMM-GamepadPlusEvents", {
         let controlSets = this.config.controlSets.filter(cs => cs.name === controlSetName);
         if (controlSets.length) {
             this.currentControlSet = controlSets[0];
+            Log.info(`New control set: ${controlSetName}`);
         }
         else {
-            Log.console.warn();(`Control set not found: ${controlSetName}`);
+            Log.warn();(`Control set not found: ${controlSetName}`);
         }
     },
 
@@ -165,6 +166,9 @@ Module.register("MMM-GamepadPlusEvents", {
                                                     );
         Array.from(actions).forEach(action => {
             this.sendNotification(action.notification, action.payload);
+            
+            // execute "own" events since the module itself does not receive the notification sent
+            this.notificationReceived(action.notification, action.payload, this);
         });
     },
 
@@ -189,11 +193,7 @@ Module.register("MMM-GamepadPlusEvents", {
             this.sendNotification(action.notification, action.payload);
 
             // execute "own" events since the module itself does not receive the notification sent
-            switch (action.notification) {
-                case "NEW_GAMEPAD_CONTROLSET":
-                    this.setControlSet(action.payload);
-                    break;
-            }
+            this.notificationReceived(action.notification, action.payload, this);
         });
     },
 
